@@ -2,13 +2,14 @@
 
 #include "utils/logger.hpp"
 #include "utils/utils.hpp"
+#include "config/location.hpp"
 #include <poll.h>
 #include <sys/socket.h>
 #include <cstring>
 
 namespace conn
 {
-	ClientSocket::ClientSocket(const int fd, const config::ServerConfig &serverConfig) : Connection(fd, Connection::CLIENT_SOCKET), _serverConfig(serverConfig), _state(READING_REQUEST)
+	ClientSocket::ClientSocket(const int fd, const config::ServerConfig &serverConfig) : Connection(fd, Connection::CLIENT_SOCKET), _serverConfig(serverConfig), _state(READING_REQUEST), _request()
 	{
 	}
 
@@ -16,7 +17,39 @@ namespace conn
 	{
 	}
 
-	void conn::ClientSocket::handlePollIn()
+	void ClientSocket::identifyRequestType()
+	{
+		const config::LocationConfig *location = _serverConfig.getLocationForRequest(_request.getUri());
+
+		if (location)
+		{
+			if (!location->getRedirect().second.empty())
+			{
+				_request.setReqType(http::Request::REQ_REDIRECT);
+				LOG_CONSOLE("ClientSocket fd: %d request identified as REDIRECT", getFd());
+				return;
+			}
+
+			if (_request.isCgiRequest(location->getCgiMappings()))
+			{
+				_request.setReqType(http::Request::REQ_CGI);
+				LOG_CONSOLE("ClientSocket fd: %d request identified as CGI", getFd());
+				return;
+			}
+
+			if (_request.isUploadRequest(location->getUploadPaths()))
+			{
+				_request.setReqType(http::Request::REQ_UPLOAD);
+				LOG_CONSOLE("ClientSocket fd: %d request identified as UPLOAD", getFd());
+				return;
+			}
+
+			_request.setReqType(http::Request::REQ_STATIC);
+			LOG_CONSOLE("ClientSocket fd: %d request identified as STATIC", getFd());
+		}
+	}
+
+	void ClientSocket::handlePollIn()
 	{
 		LOG_DEBUG("ClientSocket fd: %d handlePollIn called", getFd());
 		updateLastActivity();
@@ -38,15 +71,29 @@ namespace conn
 		}
 
 		buffer[bytesRead] = '\0';
-		LOG_CONSOLE("ClientSocket fd: %d received data: %s", getFd(), buffer);
+		http::Request::ParseState parseState = _request.parse(buffer, static_cast<size_t>(bytesRead));
+
+		if (parseState == http::Request::PARSE_ERROR)
+		{
+			LOG_ERROR("ClientSocket fd: %d request parse error", getFd());
+			// !fix: build response parse error
+			_state = CLIENT_ERROR;
+			// !fix: prepare error response
+			return;
+		}
+
+		if (parseState == http::Request::PARSE_BODY && !_request.getIsTypeIdentified())
+		{
+			identifyRequestType();
+		}
 	}
 
-	void conn::ClientSocket::handlePollOut()
+	void ClientSocket::handlePollOut()
 	{
 		LOG_DEBUG("ClientSocket fd: %d handlePollOut called", getFd());
 	}
 
-	void conn::ClientSocket::handlePollErr()
+	void ClientSocket::handlePollErr()
 	{
 		LOG_DEBUG("ClientSocket fd: %d handlePollErr called", getFd());
 	}

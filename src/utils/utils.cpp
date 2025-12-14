@@ -68,6 +68,13 @@ namespace utils
 		return false;
 	}
 
+	bool endWith(const std::string &str, const std::string &suffix)
+	{
+		if (str.length() < suffix.length())
+			return false;
+		return str.compare(str.length() - suffix.length(), suffix.length(), suffix) == 0;
+	}
+
 	void removeExtraChar(std::string &str, const char ch)
 	{
 		while (!str.empty() && str.at(str.length() - 1) == ch)

@@ -14,6 +14,26 @@ namespace config
 	{
 	}
 
+	const LocationConfig *ServerConfig::getLocationForRequest(const std::string &requestUri) const
+	{
+		const LocationConfig *bestMatch = NULL;
+		size_t bestMatchLength = 0;
+
+		for (std::vector<LocationConfig>::const_iterator it = _locations.begin(); it != _locations.end(); ++it)
+		{
+			if (utils::startsWith(requestUri, it->getAliasPath(), "/"))
+			{
+				if (it->getAliasPath().length() > bestMatchLength)
+				{
+					bestMatch = &(*it);
+					bestMatchLength = it->getAliasPath().length();
+				}
+			}
+		}
+
+		return bestMatch;
+	}
+
 	void ServerConfig::setup()
 	{
 		if (_hostPorts.empty())

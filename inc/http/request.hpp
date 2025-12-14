@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config/location.hpp"
 #include <string>
 #include <map>
 #include <vector>
@@ -37,9 +38,9 @@ namespace http
 	private:
 		ParseState _parseState;
 		// request line
-		std::string _methodStr;
+		Method _method;
 		std::string _uri;
-		std::string _query;
+		std::map<std::string, std::string> _query;
 		std::string _httpVersion;
 		// headers
 		std::map<std::string, std::string> _headers;
@@ -48,9 +49,16 @@ namespace http
 		std::string _buffer;
 		size_t _contentLength;
 		bool _isChunked;
+		// parsing helpers
+		ReqType _reqType;
+		bool _isTypeIdentified;
+		bool _isStreamingUpload;
+		int _uploadFd;
+		std::string _uploadFilePath;
+		size_t _uploadedBytes;
 
-		Method
-		parseMethod(const std::string &methodStr);
+		Method parseMethod(const std::string &methodStr);
+		const std::string getQueryField(const std::string &key) const;
 		const std::string getHeader(const std::string &key) const;
 		ParseState parseRequestLine(const std::string &line);
 		ParseState parseHeadersLine(const std::string &line);
@@ -58,6 +66,18 @@ namespace http
 	public:
 		Request();
 		~Request();
+
+		inline void setIsTypeIdentified(const bool &value) { _isTypeIdentified = value; }
+		inline void setReqType(const ReqType &type) { _reqType = type; }
+
+		inline const bool &getIsTypeIdentified() const { return _isTypeIdentified; }
+		inline const ReqType &getReqType() const { return _reqType; }
+		inline const std::string &getUri() const { return _uri; }
+
+		bool isCgiRequest(const std::vector<config::LocationConfig::CgiMapping> &cgiMappings) const;
+		bool isUploadRequest(const std::vector<std::string> &uploadPaths);
+
+		bool canEnableStreamingUpload(const std::string &fileName, const std::vector<std::string> &uploadPaths);
 
 		ParseState parse(const std::string &data, const size_t &len);
 	};

@@ -4,15 +4,100 @@
 #include "utils/utils.hpp"
 #include <sstream>
 #include <algorithm>
+#include <fcntl.h>
+#include <unistd.h>
 
 namespace http
 {
-	Request::Request() : _parseState(PARSE_REQUEST_LINE), _methodStr(""), _uri(""), _query(""), _httpVersion(""), _headers(), _body(), _buffer(""), _contentLength(0), _isChunked(false)
+	Request::Request() : _parseState(PARSE_REQUEST_LINE), _method(Request::METHOD_UNKNOWN), _uri(""), _query(), _httpVersion(""), _headers(), _body(), _buffer(""), _contentLength(0), _isChunked(false), _reqType(REQ_UNKNOWN), _isTypeIdentified(false), _isStreamingUpload(false), _uploadFd(-1), _uploadFilePath(""), _uploadedBytes(0)
 	{
 	}
 
 	Request::~Request()
 	{
+	}
+
+	bool Request::canEnableStreamingUpload(const std::string &fileName, const std::vector<std::string> &uploadPaths)
+	{
+		if (_isStreamingUpload || _uploadFd >= 0)
+			return false;
+
+		for (std::vector<std::string>::const_iterator it = uploadPaths.begin(); it != uploadPaths.end(); ++it)
+		{
+			std::string path = utils::buildPath(*it, fileName);
+			_uploadFd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+			if (_uploadFd < 0)
+				continue;
+			_uploadFilePath = path;
+			_isStreamingUpload = true;
+			return true;
+		}
+		LOG_DEBUG("No matching upload path found for streaming upload");
+		return false;
+	}
+
+	bool Request::isCgiRequest(const std::vector<config::LocationConfig::CgiMapping> &cgiMappings) const
+	{
+		if (_reqType != REQ_UNKNOWN)
+			return _reqType == REQ_CGI;
+
+		for (std::vector<config::LocationConfig::CgiMapping>::const_iterator it = cgiMappings.begin(); it != cgiMappings.end(); ++it)
+		{
+			if (utils::endWith(_uri, it->first))
+				return true;
+		}
+		return false;
+	}
+
+	bool Request::isUploadRequest(const std::vector<std::string> &uploadPaths)
+	{
+		if (_method != Request::METHOD_POST || uploadPaths.empty())
+			return false;
+
+		const std::string contentTypeStr = getHeader("content-type");
+		const bool isMultipart = contentTypeStr.find("multipart/form-data") != std::string::npos;
+		if (!isMultipart && !_isStreamingUpload)
+		{
+			if (utils::startsWith(contentTypeStr, "application/octet-stream") ||
+					utils::startsWith(contentTypeStr, "image/") || utils::startsWith(contentTypeStr, "video/") || utils::startsWith(contentTypeStr, "audio/") || utils::startsWith(contentTypeStr, "text/") ||
+					utils::startsWith(contentTypeStr, "application/zip") || utils::startsWith(contentTypeStr, "application/pdf"))
+			{
+				std::string fileNameExt = getHeader("x-filename");
+				if (fileNameExt.empty())
+					fileNameExt = getQueryField("filename");
+				if (fileNameExt.empty())
+				{
+					LOG_WARNING("Upload request but no filename provided");
+					fileNameExt = "upload_";
+				}
+
+				std::string fileName = fileNameExt.substr(fileNameExt.find_last_of(".") + 1);
+				char timestamp[fileName.length() + 25];
+				snprintf(timestamp, sizeof(timestamp), "%s%ld", fileName.c_str(), static_cast<long>(time(NULL)));
+				fileName = std::string(timestamp);
+				LOG_CONSOLE("Inferred upload filename: %s", fileName.c_str());
+				if (canEnableStreamingUpload(fileName, uploadPaths))
+				{
+					LOG_DEBUG("Enabling streaming upload for file: %s", fileName.c_str());
+					return true;
+				}
+				else
+				{
+					LOG_DEBUG("Streaming upload not enabled for file: %s", fileName.c_str());
+					return false;
+				}
+			}
+			else
+			{
+				LOG_DEBUG("Not an upload request based on Content-Type: %s", contentTypeStr.c_str());
+				return false;
+			}
+		}
+		if (isMultipart)
+		{
+			LOG_DEBUG("Multipart upload request detected");
+		}
+		return false;
 	}
 
 	Request::Method Request::parseMethod(const std::string &methodStr)
@@ -27,10 +112,19 @@ namespace http
 			return METHOD_UNKNOWN;
 	}
 
+	const std::string Request::getQueryField(const std::string &key) const
+	{
+		std::string lowerKey = key;
+		std::transform(lowerKey.begin(), lowerKey.end(), lowerKey.begin(), ::tolower);
+		std::map<std::string, std::string>::const_iterator it = _query.find(lowerKey);
+		if (it != _query.end())
+			return it->second;
+		return "";
+	}
 	const std::string Request::getHeader(const std::string &key) const
 	{
-		const std::string lowerKey = key;
-		std::transform(lowerKey.begin(), lowerKey.end(), lowerKey.begin(), ::tolower);
+		std::string lowerKey = key;
+		std::transform(lowerKey.begin(), lowerKey.end(), lowerKey.begin(), tolower);
 		std::map<std::string, std::string>::const_iterator it = _headers.find(lowerKey);
 		if (it != _headers.end())
 			return it->second;
@@ -40,33 +134,47 @@ namespace http
 	Request::ParseState Request::parseRequestLine(const std::string &line)
 	{
 		std::istringstream stream(line);
-		std::string method;
+		std::string methodStr;
 		std::string uri;
 		std::string version;
 
-		stream >> method >> uri >> version;
-		if (method.empty() || uri.empty() || version.empty())
+		stream >> methodStr >> uri >> version;
+		if (methodStr.empty() || uri.empty() || version.empty())
 		{
 			// todo: continue parser
 			LOG_ERROR("Malformed request line");
 			return PARSE_ERROR;
 		}
 
-		const Method reqMethod = parseMethod(method);
+		_method = parseMethod(methodStr);
 
 		size_t posQuery = uri.find('?');
 		if (posQuery != std::string::npos)
 		{
 			_uri = uri.substr(0, posQuery);
-			_query = uri.substr(posQuery + 1);
+			std::string queryStr = uri.substr(posQuery + 1);
+			std::vector<std::string> pairs = utils::splitString(queryStr, '&');
+			for (std::vector<std::string>::iterator it = pairs.begin(); it != pairs.end(); ++it)
+			{
+				size_t posEqual = it->find('=');
+				if (posEqual != std::string::npos)
+				{
+					std::string key = it->substr(0, posEqual);
+					std::string value = it->substr(posEqual + 1);
+					std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+					_query.insert(std::make_pair(key, value));
+				}
+				else
+				{
+					_query.insert(std::make_pair(*it, ""));
+				}
+			}
 		}
 		else
 		{
 			_uri = uri;
-			_query = "";
 		}
 		_httpVersion = version;
-		_methodStr = method;
 
 		return PARSE_HEADERS;
 	}
@@ -110,14 +218,16 @@ namespace http
 			std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 
 			_headers.insert(std::make_pair(key, value));
+			// ? display parsed header line
+			LOG_CONSOLE("Parsed header line: key=%s, value=%s", key.c_str(), value.c_str());
+			return PARSE_HEADERS;
 		}
 	}
 
 	Request::ParseState Request::parse(const std::string &data, const size_t &len)
 	{
 		LOG_DEBUG("Request parse called with data length: %zu", len);
-		_buffer.append(data, len);
-
+		_buffer.append(data.c_str(), len);
 		if (_parseState == Request::PARSE_REQUEST_LINE)
 		{
 			LOG_DEBUG("Parsing request line");
@@ -141,6 +251,9 @@ namespace http
 			_buffer.erase(0, posEnd + 2);
 
 			_parseState = parseRequestLine(line);
+			// ? display parsed request line
+			if (_parseState != PARSE_ERROR)
+				LOG_CONSOLE("Parsed request line: method=%d, uri=%s, version=%s", _method, _uri.c_str(), _httpVersion.c_str());
 		}
 		if (_parseState == Request::PARSE_HEADERS)
 		{
@@ -175,4 +288,5 @@ namespace http
 		}
 
 		return _parseState;
-	} // namespace http
+	}
+} // namespace http

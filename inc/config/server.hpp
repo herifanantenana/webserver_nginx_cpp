@@ -31,6 +31,7 @@ namespace config
 
 		inline const std::vector<HostPort> &getHostPorts() const { return _hostPorts; }
 
+		const LocationConfig *getLocationForRequest(const std::string &requestUri) const;
 		void setup();
 		void printConfig(std::ofstream &outFile) const;
 	};
