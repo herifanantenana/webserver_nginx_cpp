@@ -28,6 +28,8 @@ namespace connection
 		inline const int &getFd() const { return _fd; }
 		inline const ConnectionType &getType() const { return _type; }
 
+		bool isTimedOut(const int sec = 10) const;
+
 		virtual bool shouldClose() const = 0;
 	};
 } // namespace connection

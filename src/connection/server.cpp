@@ -1,6 +1,7 @@
 #include "connection/server.hpp"
 
 #include "utils/exception.hpp"
+#include "utils/logger.hpp"
 #include <cstring>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -40,14 +41,11 @@ namespace connection
 
 		if (listen(getFd(), SOMAXCONN) < 0)
 			EXCEPTION("Failed to listen on socket: %s", std::strerror(errno));
+
+		LOG_INFO("Server socket bound to http://%s:%d", _host.c_str(), _port);
 	}
 
 	ServerSocket::~ServerSocket()
 	{
-	}
-
-	bool connection::ServerSocket::shouldClose() const
-	{
-		return false;
 	}
 } // namespace connection

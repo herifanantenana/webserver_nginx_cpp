@@ -17,4 +17,13 @@ namespace connection
 				LOG_WARNING("Setting an invalid fd: %d", _fd);
 		}
 	}
+
+	bool connection::Connection::isTimedOut(const int sec) const
+	{
+		if (_lastActivity == 0)
+			return false;
+
+		time_t now = std::time(NULL);
+		return (now - _lastActivity) > sec;
+	}
 } // namespace connection

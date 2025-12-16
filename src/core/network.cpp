@@ -72,11 +72,11 @@ namespace core
 	void Network::unregisterConnection(connection::Connection *connection)
 	{
 		const int fd = connection->getFd();
-		std::map<const int, connection::Connection *>::iterator connIt = _connections.find(fd);
-		if (connIt != _connections.end())
+		connection::Connection *conn = getConnectionFd(fd);
+		if (conn)
 		{
-			delete connIt->second;
-			_connections.erase(connIt);
+			_connections.erase(conn->getFd());
+			delete conn;
 
 			for (std::vector<pollfd>::iterator pfdIt = _pollFds.begin(); pfdIt != _pollFds.end(); ++pfdIt)
 			{
@@ -86,6 +86,8 @@ namespace core
 					break;
 				}
 			}
+
+			LOG_FATAL("Closing Connection fd=%d", fd);
 		}
 		else
 			LOG_WARNING("Attempted to unregister non-existent connection with fd %d.", fd);
@@ -170,15 +172,14 @@ namespace core
 
 			--eventCount;
 			int fd = _pollFds[i].fd;
-			// short revents = _pollFds[i].revents;
 
-			connection::Connection *connection = _connections[fd];
+			connection::Connection *connection = getConnectionFd(fd);
 			if (!connection)
 				continue;
 
 			try
 			{
-				// todo: handler socket event
+				// todo: handler socket event for server and client socket
 				if (connection->shouldClose())
 					toRemove.push_back(connection);
 			}
@@ -192,6 +193,30 @@ namespace core
 				unregisterConnection(*it);
 			toRemove.clear();
 		}
+	}
+
+	void Network::cleanUpTimeOutConnection()
+	{
+		std::vector<connection::Connection *> toRemove;
+
+		for (std::map<const int, connection::Connection *>::iterator connIt = _connections.begin(); connIt != _connections.end(); ++connIt)
+		{
+			connection::Connection *conn = connIt->second;
+
+			if (conn->getType() == connection::Connection::SERVER_SOCKET)
+				continue;
+
+			if (conn->isTimedOut(10))
+			{
+				// todo: handle timeout response
+				LOG_WARNING("Connection timedOut fd=%d", connIt->first);
+				toRemove.push_back(conn);
+			}
+		}
+
+		for (std::vector<connection::Connection *>::iterator it = toRemove.begin(); it != toRemove.end(); ++it)
+			unregisterConnection(*it);
+		toRemove.clear();
 	}
 
 	void Network::init(std::vector<config::ServerConfig> serverConfigs)
