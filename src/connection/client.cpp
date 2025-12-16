@@ -2,6 +2,8 @@
 
 #include "utils/logger.hpp"
 #include <poll.h>
+#include <cstring>
+#include <sys/socket.h>
 
 namespace connection
 {
@@ -34,13 +36,32 @@ namespace connection
 		if (events & (POLLHUP | POLLERR | POLLNVAL))
 			LOG_ERROR("Error on events & (POLLHUP | POLLERR | POLLNVAL) on Client fd=%d", getFd());
 		if (events & POLLIN)
-			LOG_INFO("event POLLIN on Client fd=%d", getFd());
+			handlePollIn();
 		if (events & POLLOUT)
 			LOG_INFO("event POLLOUT on Client fd=%d", getFd());
 	}
 
 	void ClientSocket::handlePollIn()
 	{
+		updateActivity();
+		char buffer[4096];
+		ssize_t bytesRead = recv(getFd(), buffer, sizeof(buffer), 0);
+		if (bytesRead < 0)
+		{
+			LOG_ERROR("ClientSocket fd: %d recv error : %s", getFd(), std::strerror(errno));
+			_state = CLIENT_ERROR;
+			return;
+		}
+		if (bytesRead == 0)
+		{
+			LOG_WARNING("Client fd=%d closed the connection", getFd());
+			_state = CLOSING;
+			return;
+		}
+		buffer[bytesRead] = '\0';
+
+		// todo: append to read buffer and process request
+		// todo: some stuff
 	}
 
 } // namespace connection
