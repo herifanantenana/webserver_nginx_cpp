@@ -1,9 +1,11 @@
 #include "connection/client.hpp"
 
 #include "utils/logger.hpp"
+#include "http/request.hpp"
 #include <poll.h>
 #include <cstring>
 #include <sys/socket.h>
+#include <cerrno>
 
 namespace connection
 {
@@ -11,7 +13,7 @@ namespace connection
 			: Connection(fd, Connection::CLIENT_SOCKET),
 				_serverConfig(serverConfig),
 				_state(READING_REQUEST),
-				// ? request
+				_request(),
 				// ? response
 				_readBuffer(),
 				_writeBuffer(),
@@ -44,6 +46,7 @@ namespace connection
 	void ClientSocket::handlePollIn()
 	{
 		updateActivity();
+
 		char buffer[4096];
 		ssize_t bytesRead = recv(getFd(), buffer, sizeof(buffer), 0);
 		if (bytesRead < 0)
@@ -60,8 +63,16 @@ namespace connection
 		}
 		buffer[bytesRead] = '\0';
 
+		http::HttpRequest::ParseState parseState = _request.parse(buffer, bytesRead);
 		// todo: append to read buffer and process request
 		// todo: some stuff
+
+		if (parseState == http::HttpRequest::PARSE_BAD_REQUEST)
+		{
+			LOG_ERROR("Bad request from client fd=%d", getFd());
+			_state = CLIENT_ERROR;
+			return;
+		}
 	}
 
 } // namespace connection

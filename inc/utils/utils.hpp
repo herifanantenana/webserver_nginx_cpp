@@ -17,4 +17,6 @@ namespace utils
 	void removeExtraChar(std::string &str, const char ch);
 	std::vector<std::string> splitString(const std::string &str, const char &del);
 	std::string buildPath(const std::string &path1, const std::string &path2);
+
+	size_t hexToSizeT(const std::string &hexStr);
 } // namespace utils

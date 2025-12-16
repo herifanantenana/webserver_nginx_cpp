@@ -31,7 +31,7 @@ namespace utils
 	};
 } // namespace utils
 
-#define LOG_CONSOL(...) utils::Logger::log(utils::Logger::CONSOL, __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
+#define LOG_CONSOLE(...) utils::Logger::log(utils::Logger::CONSOL, __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 #define LOG_DEBUG(...) utils::Logger::log(utils::Logger::DEBUG, __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 #define LOG_INFO(...) utils::Logger::log(utils::Logger::INFO, __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 #define LOG_WARNING(...) utils::Logger::log(utils::Logger::WARNING, __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)

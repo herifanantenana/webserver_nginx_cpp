@@ -1,6 +1,7 @@
 #include "connection/connection.hpp"
 
 #include "config/server.hpp"
+#include "http/request.hpp"
 
 namespace connection
 {
@@ -21,8 +22,7 @@ namespace connection
 	private:
 		const config::ServerConfig &_serverConfig;
 		ClientState _state;
-		// ? request
-		// ? response
+		http::HttpRequest _request;
 
 		// buffer
 		std::vector<char> _readBuffer;

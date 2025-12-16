@@ -100,4 +100,12 @@ namespace utils
 			return path1 + "/" + path2;
 		return path1 + path2;
 	}
+
+	size_t hexToSizeT(const std::string &hexStr)
+	{
+		size_t result = 0;
+		std::istringstream iss(hexStr);
+		iss >> std::hex >> result;
+		return result;
+	}
 } // namespace utils
