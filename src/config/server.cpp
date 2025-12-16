@@ -42,7 +42,7 @@ namespace config
 			it->setup(_rootPath);
 	}
 
-	void config::ServerConfig::printConfig(std::ofstream &outFile) const
+	void ServerConfig::printConfig(std::ofstream &outFile) const
 	{
 		outFile << "Server Config:" << std::endl;
 
@@ -60,5 +60,25 @@ namespace config
 		outFile << "\tLocations:" << std::endl;
 		for (std::vector<LocationConfig>::const_iterator it = _locations.begin(); it != _locations.end(); ++it)
 			it->printConfig(outFile);
+	}
+
+	const LocationConfig *ServerConfig::getLocationForRequest(const std::string &requestUri) const
+	{
+		const LocationConfig *bestMatch = NULL;
+		size_t bestMatchLength = 0;
+
+		for (std::vector<LocationConfig>::const_iterator it = _locations.begin(); it != _locations.end(); ++it)
+		{
+			if (utils::startsWith(requestUri, it->getAliasPath(), "/"))
+			{
+				if (it->getAliasPath().length() > bestMatchLength)
+				{
+					bestMatch = &(*it);
+					bestMatchLength = it->getAliasPath().length();
+				}
+			}
+		}
+
+		return bestMatch;
 	}
 } // namespace config

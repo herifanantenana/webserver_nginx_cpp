@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config/location.hpp"
 #include <string>
 #include <map>
 #include <vector>
@@ -89,6 +90,11 @@ namespace http
 		HttpRequest();
 		~HttpRequest();
 
+		inline void setReqType(const RequestType &type) { _requestType = type; }
+
+		inline const std::string &getUri() const { return _uri; }
+
+		bool isCgiRequest(const std::vector<config::LocationConfig::CgiMapping> &cgiMappings) const;
 		ParseState parse(const std::string &data, const size_t &len);
 	};
 } // namespace http

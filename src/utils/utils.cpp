@@ -54,6 +54,13 @@ namespace utils
 			str = str.substr(start, end - start + 1);
 	}
 
+	bool endsWith(const std::string &str, const std::string &suffix)
+	{
+		if (suffix.length() > str.length())
+			return false;
+		return str.substr(str.length() - suffix.length()) == suffix;
+	}
+
 	bool startsWith(const std::string &str, const std::string &prefix, const std::string &after)
 	{
 		if (str.length() < prefix.length())

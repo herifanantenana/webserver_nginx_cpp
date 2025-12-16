@@ -7,9 +7,10 @@ namespace config
 {
 	class LocationConfig
 	{
-	private:
+	public:
 		typedef std::pair<std::string, std::string> CgiMapping;
 
+	private:
 		std::string _aliasPath;
 		std::string _rootPath;
 		bool _autoIndex;
@@ -31,6 +32,11 @@ namespace config
 		inline void addCgiMapping(const std::string &extension, const std::string &script) { _cgiMappings.push_back(std::make_pair(extension, script)); }
 		inline void addUploadPath(const std::string &path) { _uploadPaths.push_back(path); }
 		inline void setRedirect(int code, const std::string &url) { _redirect = std::make_pair(code, url); }
+
+		inline const std::string &getAliasPath() const { return _aliasPath; }
+		inline const std::pair<int, std::string> &getRedirect() const { return _redirect; }
+		inline const std::vector<CgiMapping> &getCgiMappings() const { return _cgiMappings; }
+		inline const std::vector<std::string> &getUploadPaths() const { return _uploadPaths; }
 
 		void setup(const std::string &serverRootPath);
 		void printConfig(std::ofstream &outFile) const;

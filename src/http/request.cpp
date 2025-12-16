@@ -172,6 +172,18 @@ namespace http
 			return _parseState;
 		}
 	}
+	bool http::HttpRequest::isCgiRequest(const std::vector<config::LocationConfig::CgiMapping> &cgiMappings) const
+	{
+		if (_requestType != REQ_UNKNOWN)
+			return _requestType == REQ_CGI;
+
+		for (std::vector<config::LocationConfig::CgiMapping>::const_iterator it = cgiMappings.begin(); it != cgiMappings.end(); ++it)
+		{
+			if (utils::endsWith(_uri, it->first))
+				return true;
+		}
+		return false;
+	}
 
 	HttpRequest::ParseState HttpRequest::parseBodyChunk()
 	{

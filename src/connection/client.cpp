@@ -1,7 +1,9 @@
 #include "connection/client.hpp"
 
 #include "utils/logger.hpp"
+#include "utils/utils.hpp"
 #include "http/request.hpp"
+#include "config/location.hpp"
 #include <poll.h>
 #include <cstring>
 #include <sys/socket.h>
@@ -43,6 +45,34 @@ namespace connection
 			LOG_INFO("event POLLOUT on Client fd=%d", getFd());
 	}
 
+	void ClientSocket::identifyRequestType()
+	{
+		LOG_DEBUG("Identifying request type for Client fd=%d", getFd());
+
+		const config::LocationConfig *location = _serverConfig.getLocationForRequest(_request.getUri());
+
+		if (location)
+		{
+			if (!location->getRedirect().second.empty())
+			{
+				_request.setReqType(http::HttpRequest::REQ_REDIRECT);
+				LOG_CONSOLE("ClientSocket fd: %d request identified as REDIRECT", getFd());
+				return;
+			}
+			if (_request.isCgiRequest(location->getCgiMappings()))
+			{
+				_request.setReqType(http::HttpRequest::REQ_CGI);
+				LOG_CONSOLE("ClientSocket fd: %d request identified as CGI", getFd());
+				return;
+			}
+
+			// todo: check upload paths
+		}
+
+		_request.setReqType(http::HttpRequest::REQ_STATIC);
+		LOG_CONSOLE("ClientSocket fd: %d request identified as STATIC", getFd());
+	}
+
 	void ClientSocket::handlePollIn()
 	{
 		updateActivity();
@@ -72,6 +102,10 @@ namespace connection
 			LOG_ERROR("Bad request from client fd=%d", getFd());
 			_state = CLIENT_ERROR;
 			return;
+		}
+		if (parseState == http::HttpRequest::PARSE_BODY)
+		{
+			identifyRequestType();
 		}
 	}
 

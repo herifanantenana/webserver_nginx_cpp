@@ -29,6 +29,8 @@ namespace config
 		inline void setClientMaxBodySize(size_t size) { _clientMaxBodySize = size; }
 		inline void addLocation(const LocationConfig &location) { _locations.push_back(location); }
 
+		const LocationConfig *getLocationForRequest(const std::string &requestUri) const;
+
 		inline const std::vector<HostPort> &getHostPort() const { return _hostPorts; }
 		void setup();
 		void printConfig(std::ofstream &outFile) const;

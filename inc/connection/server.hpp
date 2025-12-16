@@ -22,7 +22,11 @@ namespace connection
 
 		virtual void handleEvents(short events);
 
-		inline virtual bool shouldClose() const { return false; }
+		inline virtual bool
+		shouldClose() const
+		{
+			return false;
+		}
 		virtual void handlePollIn();
 	};
 } // namespace connection

@@ -14,6 +14,7 @@ namespace utils
 
 	void trimChars(std::string &str, const std::string &chars = " \t\n\r\f\v");
 	bool startsWith(const std::string &str, const std::string &prefix, const std::string &after);
+	bool endsWith(const std::string &str, const std::string &suffix);
 	void removeExtraChar(std::string &str, const char ch);
 	std::vector<std::string> splitString(const std::string &str, const char &del);
 	std::string buildPath(const std::string &path1, const std::string &path2);

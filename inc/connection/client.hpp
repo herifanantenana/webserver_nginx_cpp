@@ -35,6 +35,9 @@ namespace connection
 
 		// ? cgi handler
 
+		void identifyRequestType();
+		bool isCgiRequest(const config::LocationConfig *location) const;
+
 	public:
 		ClientSocket(const int fd, const config::ServerConfig &serverConfig);
 		virtual ~ClientSocket();
