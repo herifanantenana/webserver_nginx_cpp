@@ -28,7 +28,10 @@ namespace config
 			*it = utils::buildPath(_rootPath, *it);
 
 		for (std::vector<std::string>::iterator it = _uploadPaths.begin(); it != _uploadPaths.end(); ++it)
+		{
+			std::cout << "rootPath: " << _rootPath << ", uploadPath: " << *it << std::endl;
 			*it = utils::buildPath(_rootPath, *it);
+		}
 
 		if (!_redirect.second.empty() && (_redirect.first < 300 || _redirect.first > 399))
 			EXCEPTION("Invalid redirect status code %d for location: %s", _redirect.first, _aliasPath.c_str());

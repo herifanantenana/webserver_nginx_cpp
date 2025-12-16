@@ -129,4 +129,12 @@ namespace utils
 			result.erase(result.length() - 1);
 		return result;
 	}
+
+	size_t hexToSizeT(const std::string &hexStr)
+	{
+		size_t result = 0;
+		std::istringstream iss(hexStr);
+		iss >> std::hex >> result;
+		return result;
+	}
 } // namespace utils

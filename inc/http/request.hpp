@@ -47,6 +47,7 @@ namespace http
 		// body
 		std::vector<char> _body;
 		std::string _buffer;
+		size_t _bodySize;
 		size_t _contentLength;
 		bool _isChunked;
 		// parsing helpers
@@ -62,6 +63,8 @@ namespace http
 		const std::string getHeader(const std::string &key) const;
 		ParseState parseRequestLine(const std::string &line);
 		ParseState parseHeadersLine(const std::string &line);
+		ParseState parseBodyChunk();
+		ParseState parseBodyContentLength();
 
 	public:
 		Request();

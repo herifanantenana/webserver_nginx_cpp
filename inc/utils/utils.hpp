@@ -20,4 +20,5 @@ namespace utils
 	std::string buildPath(const std::string &path1, const std::string &path2);
 
 	std::string getEventNames(const short events);
+	size_t hexToSizeT(const std::string &hexStr);
 } // namespace utils

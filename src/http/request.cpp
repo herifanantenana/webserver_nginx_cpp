@@ -6,10 +6,11 @@
 #include <algorithm>
 #include <fcntl.h>
 #include <unistd.h>
+#include <cstring>
 
 namespace http
 {
-	Request::Request() : _parseState(PARSE_REQUEST_LINE), _method(Request::METHOD_UNKNOWN), _uri(""), _query(), _httpVersion(""), _headers(), _body(), _buffer(""), _contentLength(0), _isChunked(false), _reqType(REQ_UNKNOWN), _isTypeIdentified(false), _isStreamingUpload(false), _uploadFd(-1), _uploadFilePath(""), _uploadedBytes(0)
+	Request::Request() : _parseState(PARSE_REQUEST_LINE), _method(Request::METHOD_UNKNOWN), _uri(""), _query(), _httpVersion(""), _headers(), _body(), _buffer(""), _bodySize(0), _contentLength(0), _isChunked(false), _reqType(REQ_UNKNOWN), _isTypeIdentified(false), _isStreamingUpload(false), _uploadFd(-1), _uploadFilePath(""), _uploadedBytes(0)
 	{
 	}
 
@@ -20,14 +21,21 @@ namespace http
 	bool Request::canEnableStreamingUpload(const std::string &fileName, const std::vector<std::string> &uploadPaths)
 	{
 		if (_isStreamingUpload || _uploadFd >= 0)
+		{
+			LOG_WARNING("Streaming upload already enabled");
 			return false;
+		}
 
 		for (std::vector<std::string>::const_iterator it = uploadPaths.begin(); it != uploadPaths.end(); ++it)
 		{
 			std::string path = utils::buildPath(*it, fileName);
+			LOG_DEBUG("Checking upload path for streaming upload: %s", path.c_str());
 			_uploadFd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 			if (_uploadFd < 0)
+			{
+				LOG_WARNING("Failed to open upload file path: %s, error: %s", path.c_str(), std::strerror(errno));
 				continue;
+			}
 			_uploadFilePath = path;
 			_isStreamingUpload = true;
 			return true;
@@ -68,12 +76,13 @@ namespace http
 				if (fileNameExt.empty())
 				{
 					LOG_WARNING("Upload request but no filename provided");
-					fileNameExt = "upload_";
+					fileNameExt = "upload";
 				}
 
-				std::string fileName = fileNameExt.substr(fileNameExt.find_last_of(".") + 1);
+				std::string fileName = fileNameExt.substr(0, fileNameExt.find_last_of("."));
+				std::string fileExt = fileNameExt.substr(fileNameExt.find_last_of(".") + 1);
 				char timestamp[fileName.length() + 25];
-				snprintf(timestamp, sizeof(timestamp), "%s%ld", fileName.c_str(), static_cast<long>(time(NULL)));
+				snprintf(timestamp, sizeof(timestamp), "%s-%ld.%s", fileName.c_str(), static_cast<long>(time(NULL)), fileExt.c_str());
 				fileName = std::string(timestamp);
 				LOG_CONSOLE("Inferred upload filename: %s", fileName.c_str());
 				if (canEnableStreamingUpload(fileName, uploadPaths))
@@ -224,69 +233,140 @@ namespace http
 		}
 	}
 
+	Request::ParseState Request::parseBodyChunk()
+	{
+		LOG_DEBUG("Parsing chunked body");
+
+		size_t chunkLineSize = 0;
+		do
+		{
+			size_t posEndSize = _buffer.find("\r\n");
+			if (posEndSize == std::string::npos)
+				return PARSE_BODY;
+			std::string lineSize = _buffer.substr(0, posEndSize);
+			size_t posEndValue = _buffer.find("\r\n", posEndSize + 2);
+			if (posEndValue == std::string::npos)
+				return PARSE_BODY;
+			std::string lineValue = _buffer.substr(posEndSize + 2, posEndValue);
+			chunkLineSize = utils::hexToSizeT(lineSize);
+			if (chunkLineSize == 0)
+				return PARSE_COMPLETE;
+			if (lineValue.length() != chunkLineSize)
+				return PARSE_BODY;
+			_buffer.erase(0, posEndValue + 2);
+			_body.insert(_body.end(), lineValue.begin(), lineValue.end());
+		} while (_buffer.length() > 0);
+		return PARSE_BODY;
+	}
+
+	Request::ParseState Request::parseBodyContentLength()
+	{
+		LOG_DEBUG("Parsing body with Content-Length: %zu", _contentLength);
+		size_t toRead = std::min(_contentLength - _bodySize, _buffer.length());
+		if (toRead > 0)
+		{
+			// LOG_DEBUG("is Streaming Upload: %d, Upload FD: %d", _isStreamingUpload, _uploadFd);
+			if (_isStreamingUpload && _uploadFd >= 0)
+			{
+				LOG_DEBUG("Streaming upload: writing %zu bytes to file: %s", toRead, _uploadFilePath.c_str());
+				ssize_t byteWritten = write(_uploadFd, _buffer.data(), toRead);
+				if (byteWritten < 0)
+				{
+					LOG_ERROR("Error writing to upload file: %s", _uploadFilePath.c_str());
+					return PARSE_ERROR;
+				}
+				_uploadedBytes += static_cast<size_t>(byteWritten);
+				_bodySize += static_cast<size_t>(byteWritten);
+				_buffer.erase(0, byteWritten);
+			}
+			else
+			{
+				LOG_DEBUG("Reading %zu bytes into body buffer", toRead);
+				_body.insert(_body.end(), _buffer.begin(), _buffer.begin() + toRead);
+				_bodySize += toRead;
+				_buffer.erase(0, toRead);
+			}
+		}
+
+		if (_bodySize >= _contentLength)
+		{
+			if (_isStreamingUpload && _uploadFd >= 0)
+			{
+				close(_uploadFd);
+				_uploadFd = -1;
+				LOG_CONSOLE("Completed streaming upload to file: %s, total bytes: %zu", _uploadFilePath.c_str(), _uploadedBytes);
+			}
+			return PARSE_COMPLETE;
+		}
+		return PARSE_BODY;
+	}
+
 	Request::ParseState Request::parse(const std::string &data, const size_t &len)
 	{
 		LOG_DEBUG("Request parse called with data length: %zu", len);
 		_buffer.append(data.c_str(), len);
-		if (_parseState == Request::PARSE_REQUEST_LINE)
+		while (_parseState != PARSE_COMPLETE && _parseState != PARSE_ERROR)
 		{
-			LOG_DEBUG("Parsing request line");
-			size_t posEnd = _buffer.find("\r\n");
-			if (posEnd == std::string::npos)
+			if (_parseState == Request::PARSE_REQUEST_LINE)
 			{
-				if (_buffer.length() == 0)
-					LOG_DEBUG("Request nothing to parse yet");
-				else if (_buffer.length() > 4096)
-				{
-					LOG_ERROR("Request line too long");
-					_parseState = PARSE_ERROR;
-					return _parseState;
-				}
-				else
-					LOG_DEBUG("Request incomplete request line");
-				return _parseState;
-			}
-
-			const std::string line = _buffer.substr(0, posEnd);
-			_buffer.erase(0, posEnd + 2);
-
-			_parseState = parseRequestLine(line);
-			// ? display parsed request line
-			if (_parseState != PARSE_ERROR)
-				LOG_CONSOLE("Parsed request line: method=%d, uri=%s, version=%s", _method, _uri.c_str(), _httpVersion.c_str());
-		}
-		if (_parseState == Request::PARSE_HEADERS)
-		{
-			LOG_DEBUG("Parsing headers");
-			while (_parseState != Request::PARSE_BODY && _parseState != Request::PARSE_COMPLETE)
-			{
+				LOG_DEBUG("Parsing request line");
 				size_t posEnd = _buffer.find("\r\n");
 				if (posEnd == std::string::npos)
 				{
 					if (_buffer.length() == 0)
-						LOG_DEBUG("Headers nothing to parse yet");
-					else if (_buffer.length() > 8192)
+						LOG_DEBUG("Request nothing to parse yet");
+					else if (_buffer.length() > 4096)
 					{
-						LOG_ERROR("Headers too long");
+						LOG_ERROR("Request line too long");
 						_parseState = PARSE_ERROR;
 						return _parseState;
 					}
 					else
-						LOG_DEBUG("Headers incomplete header line");
+						LOG_DEBUG("Request incomplete request line");
 					return _parseState;
 				}
 
 				const std::string line = _buffer.substr(0, posEnd);
 				_buffer.erase(0, posEnd + 2);
 
-				_parseState = parseHeadersLine(line);
+				_parseState = parseRequestLine(line);
+				// ? display parsed request line
+				if (_parseState != PARSE_ERROR)
+					LOG_CONSOLE("Parsed request line: method=%d, uri=%s, version=%s", _method, _uri.c_str(), _httpVersion.c_str());
+			}
+			else if (_parseState == Request::PARSE_HEADERS)
+			{
+				LOG_DEBUG("Parsing headers");
+				while (_parseState != Request::PARSE_BODY && _parseState != Request::PARSE_COMPLETE)
+				{
+					size_t posEnd = _buffer.find("\r\n");
+					if (posEnd == std::string::npos)
+					{
+						if (_buffer.length() == 0)
+							LOG_DEBUG("Headers nothing to parse yet");
+						else if (_buffer.length() > 8192)
+						{
+							LOG_ERROR("Headers too long");
+							_parseState = PARSE_ERROR;
+							return _parseState;
+						}
+						else
+							LOG_DEBUG("Headers incomplete header line");
+						return _parseState;
+					}
+
+					const std::string line = _buffer.substr(0, posEnd);
+					_buffer.erase(0, posEnd + 2);
+
+					_parseState = parseHeadersLine(line);
+				}
+			}
+			else if (_parseState == Request::PARSE_BODY)
+			{
+				LOG_DEBUG("Parsing body");
+				_parseState = _isChunked ? parseBodyChunk() : parseBodyContentLength();
 			}
 		}
-		if (_parseState == Request::PARSE_BODY)
-		{
-			LOG_DEBUG("Parsing body");
-		}
-
 		return _parseState;
 	}
 } // namespace http

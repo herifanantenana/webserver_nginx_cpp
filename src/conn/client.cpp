@@ -19,6 +19,7 @@ namespace conn
 
 	void ClientSocket::identifyRequestType()
 	{
+		LOG_DEBUG("ClientSocket fd: %d identify request type called", getFd());
 		const config::LocationConfig *location = _serverConfig.getLocationForRequest(_request.getUri());
 
 		if (location)
@@ -43,10 +44,9 @@ namespace conn
 				LOG_CONSOLE("ClientSocket fd: %d request identified as UPLOAD", getFd());
 				return;
 			}
-
-			_request.setReqType(http::Request::REQ_STATIC);
-			LOG_CONSOLE("ClientSocket fd: %d request identified as STATIC", getFd());
 		}
+		_request.setReqType(http::Request::REQ_STATIC);
+		LOG_CONSOLE("ClientSocket fd: %d request identified as STATIC", getFd());
 	}
 
 	void ClientSocket::handlePollIn()
@@ -83,7 +83,11 @@ namespace conn
 		}
 
 		if (parseState == http::Request::PARSE_BODY && !_request.getIsTypeIdentified())
+			identifyRequestType();
+
+		if (parseState == http::Request::PARSE_COMPLETE)
 		{
+			LOG_DEBUG("ClientSocket fd: %d request parsing complete", getFd());
 			identifyRequestType();
 		}
 	}

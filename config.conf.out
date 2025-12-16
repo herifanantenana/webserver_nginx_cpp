@@ -24,7 +24,7 @@ Server Config:
 			Upload Paths:
 			Redirect: None
 		Location Config:
-			Alias Path: /uploads
+			Alias Path: /upload
 			Root Path: www/site1
 			Auto Index: Enabled
 			Index Files:
@@ -34,7 +34,7 @@ Server Config:
 				- DELETE
 			CGI Mappings:
 			Upload Paths:
-				- www/site1/www/site1/uploads
+				- www/site1/uploads
 			Redirect: None
 		Location Config:
 			Alias Path: /cgi-bin
