@@ -2,6 +2,8 @@
 
 #include "utils/exception.hpp"
 #include "utils/logger.hpp"
+#include "core/network.hpp"
+#include "connection/client.hpp"
 #include <cstring>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -54,8 +56,40 @@ namespace connection
 		if (events & (POLLHUP | POLLERR | POLLNVAL))
 			LOG_ERROR("Error on events & (POLLHUP | POLLERR | POLLNVAL) on Server fd=%d", getFd());
 		if (events & POLLIN)
-			LOG_INFO("event POLLIN on Server fd=%d", getFd());
+			handlePollIn();
 		if (events & POLLOUT)
 			LOG_INFO("event POLLOUT on Server fd=%d", getFd());
+	}
+
+	int ServerSocket::acceptClient()
+	{
+		struct sockaddr_in addr;
+		socklen_t addrLen = sizeof(addr);
+
+		int clientFd = accept(getFd(), reinterpret_cast<struct sockaddr *>(&addr), &addrLen);
+		if (clientFd < 0)
+		{
+			if (errno != EWOULDBLOCK && errno != EAGAIN)
+				LOG_ERROR("Server acceptation failed: %s", std::strerror(errno));
+			return -1;
+		}
+
+		char clientIp[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &addr.sin_addr, clientIp, INET_ADDRSTRLEN);
+		LOG_INFO("New client connected: %s:%d (fd=%d)", clientIp, ntohs(addr.sin_port), clientFd);
+
+		return clientFd;
+	}
+
+	void ServerSocket::handlePollIn()
+	{
+		const int clientFd = acceptClient();
+
+		if (clientFd >= 0)
+		{
+			core::Network *network = core::Network::getInstance();
+			ClientSocket *connection = new ClientSocket(clientFd, _serverConfig);
+			network->registerConnection(connection, POLLIN);
+		}
 	}
 } // namespace connection

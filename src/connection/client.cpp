@@ -32,10 +32,15 @@ namespace connection
 	void ClientSocket::handleEvents(short events)
 	{
 		if (events & (POLLHUP | POLLERR | POLLNVAL))
-			LOG_ERROR("Error on events & (POLLHUP | POLLERR | POLLNVAL) on Server fd=%d", getFd());
+			LOG_ERROR("Error on events & (POLLHUP | POLLERR | POLLNVAL) on Client fd=%d", getFd());
 		if (events & POLLIN)
-			LOG_INFO("event POLLIN on Server fd=%d", getFd());
+			LOG_INFO("event POLLIN on Client fd=%d", getFd());
 		if (events & POLLOUT)
-			LOG_INFO("event POLLOUT on Server fd=%d", getFd());
+			LOG_INFO("event POLLOUT on Client fd=%d", getFd());
 	}
+
+	void ClientSocket::handlePollIn()
+	{
+	}
+
 } // namespace connection

@@ -42,7 +42,7 @@ namespace connection
 		inline const ClientState &getState() const { return _state; }
 
 		virtual void handleEvents(short events);
-
 		virtual bool shouldClose() const;
+		virtual void handlePollIn();
 	};
 } // namespace connection

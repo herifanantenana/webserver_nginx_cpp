@@ -241,7 +241,7 @@ namespace core
 		{
 			synchronizePollFds();
 
-			int eventCount = poll(&_pollFds[0], _pollFds.size(), 0);
+			int eventCount = poll(&_pollFds[0], _pollFds.size(), 100);
 
 			if (eventCount < 0)
 			{

@@ -14,6 +14,8 @@ namespace connection
 		const config::ServerConfig &_serverConfig;
 		sockaddr_in _address;
 
+		int acceptClient();
+
 	public:
 		ServerSocket(const int port, const std::string &host, const config::ServerConfig &serverConfig);
 		virtual ~ServerSocket();
@@ -21,5 +23,6 @@ namespace connection
 		virtual void handleEvents(short events);
 
 		inline virtual bool shouldClose() const { return false; }
+		virtual void handlePollIn();
 	};
 } // namespace connection

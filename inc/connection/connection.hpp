@@ -32,5 +32,7 @@ namespace connection
 
 		virtual bool shouldClose() const = 0;
 		virtual void handleEvents(short events) = 0;
+
+		virtual void handlePollIn() = 0;
 	};
 } // namespace connection
