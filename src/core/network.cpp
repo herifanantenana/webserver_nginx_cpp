@@ -162,7 +162,7 @@ namespace core
 
 			--eventCount;
 			int fd = _pollFds[i].fd;
-			short revents = _pollFds[i].revents;
+			// short revents = _pollFds[i].revents;
 
 			connection::Connection *connection = _connections[fd];
 			if (!connection)

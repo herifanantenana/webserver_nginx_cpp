@@ -204,4 +204,19 @@ namespace config
 		for (std::vector<ServerConfig>::iterator it = _servers.begin(); it != _servers.end(); ++it)
 			it->setup();
 	}
+
+	void ParserConfig::printConfig(const std::string &outputFilePath) const
+	{
+		std::ofstream outFile(outputFilePath.c_str());
+		if (!outFile.is_open())
+			EXCEPTION("Failed to open output file for writing parsed configuration.");
+		outFile << "Parsed Configuration:" << std::endl;
+		for (size_t i = 0; i < _servers.size(); ++i)
+		{
+			outFile << "----------------------------------------" << std::endl;
+			outFile << "Server " << i + 1 << ":" << std::endl;
+			_servers[i].printConfig(outFile);
+		}
+		outFile.close();
+	}
 } // namespace config

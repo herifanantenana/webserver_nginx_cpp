@@ -1,0 +1,230 @@
+Parsed Configuration:
+----------------------------------------
+Server 1:
+Server Config:
+	Host and Ports:
+		- 127.0.0.1:8000
+		- 127.0.0.1:8008
+	Root Path: www/site1
+	Error Pages:
+		- 404: www/site1/errors/404.html
+		- 500: www/site1/errors/500.html
+	Client Max Body Size: 5242880
+	Locations:
+		Location Config:
+			Alias Path: /
+			Root Path: www/site1
+			Auto Index: Disabled
+			Index Files:
+				- www/site1/index.html
+			Allowed Methods:
+				- GET
+				- POST
+			CGI Mappings:
+			Upload Paths:
+			Redirect: None
+		Location Config:
+			Alias Path: /uploads
+			Root Path: www/site1
+			Auto Index: Enabled
+			Index Files:
+			Allowed Methods:
+				- GET
+				- POST
+				- DELETE
+			CGI Mappings:
+			Upload Paths:
+				- www/site1/uploads
+			Redirect: None
+		Location Config:
+			Alias Path: /cgi-bin
+			Root Path: www/site1
+			Auto Index: Disabled
+			Index Files:
+			Allowed Methods:
+				- GET
+				- POST
+			CGI Mappings:
+				- Extension: .py, Script: /usr/bin/python3
+				- Extension: .sh, Script: /bin/bash
+			Upload Paths:
+			Redirect: None
+		Location Config:
+			Alias Path: /api
+			Root Path: www/site1
+			Auto Index: Disabled
+			Index Files:
+			Allowed Methods:
+			CGI Mappings:
+			Upload Paths:
+			Redirect: 302 -> http://10.0.0.5:8080
+		Location Config:
+			Alias Path: /static
+			Root Path: www/site1
+			Auto Index: Disabled
+			Index Files:
+			Allowed Methods:
+			CGI Mappings:
+			Upload Paths:
+			Redirect: 302 -> http://0.0.0.0:9000
+----------------------------------------
+Server 2:
+Server Config:
+	Host and Ports:
+		- 127.0.0.1:8080
+	Root Path: www/api
+	Error Pages:
+		- 404: www/api/errors/404.html
+		- 500: www/api/errors/500.html
+	Client Max Body Size: 2097152
+	Locations:
+		Location Config:
+			Alias Path: /
+			Root Path: www/api
+			Auto Index: Disabled
+			Index Files:
+				- www/api/index.html
+			Allowed Methods:
+				- GET
+				- POST
+			CGI Mappings:
+			Upload Paths:
+			Redirect: None
+		Location Config:
+			Alias Path: /scripts
+			Root Path: www/api
+			Auto Index: Disabled
+			Index Files:
+			Allowed Methods:
+				- GET
+				- POST
+			CGI Mappings:
+				- Extension: .py, Script: /usr/bin/python3
+				- Extension: .sh, Script: /usr/bin/bash
+			Upload Paths:
+			Redirect: None
+		Location Config:
+			Alias Path: /v1
+			Root Path: www/api
+			Auto Index: Disabled
+			Index Files:
+			Allowed Methods:
+			CGI Mappings:
+			Upload Paths:
+			Redirect: 302 -> /v2
+		Location Config:
+			Alias Path: /v2
+			Root Path: www/api
+			Auto Index: Disabled
+			Index Files:
+				- www/api/index.html
+			Allowed Methods:
+				- GET
+				- POST
+			CGI Mappings:
+			Upload Paths:
+			Redirect: None
+		Location Config:
+			Alias Path: /main
+			Root Path: www/api
+			Auto Index: Disabled
+			Index Files:
+			Allowed Methods:
+			CGI Mappings:
+			Upload Paths:
+			Redirect: 302 -> http://192.168.1.10:80
+		Location Config:
+			Alias Path: /docs
+			Root Path: www/api
+			Auto Index: Disabled
+			Index Files:
+			Allowed Methods:
+			CGI Mappings:
+			Upload Paths:
+			Redirect: 302 -> http://0.0.0.0:9000/data
+----------------------------------------
+Server 3:
+Server Config:
+	Host and Ports:
+		- 127.0.0.1:9000
+	Root Path: www/static
+	Error Pages:
+		- 404: www/static/errors/404.html
+	Client Max Body Size: 1048576
+	Locations:
+		Location Config:
+			Alias Path: /
+			Root Path: www/static
+			Auto Index: Enabled
+			Index Files:
+				- www/static/index.html
+			Allowed Methods:
+				- GET
+				- POST
+			CGI Mappings:
+			Upload Paths:
+			Redirect: None
+		Location Config:
+			Alias Path: /bin
+			Root Path: www/static/tools
+			Auto Index: Disabled
+			Index Files:
+			Allowed Methods:
+				- GET
+				- POST
+			CGI Mappings:
+				- Extension: .py, Script: /usr/bin/python3
+				- Extension: .sh, Script: /usr/bin/bash
+			Upload Paths:
+			Redirect: None
+		Location Config:
+			Alias Path: /archive
+			Root Path: www/static
+			Auto Index: Disabled
+			Index Files:
+			Allowed Methods:
+			CGI Mappings:
+			Upload Paths:
+			Redirect: 301 -> /legacy
+		Location Config:
+			Alias Path: /legacy
+			Root Path: www/static/old
+			Auto Index: Enabled
+			Index Files:
+				- www/static/old/archive.html
+			Allowed Methods:
+				- GET
+				- POST
+			CGI Mappings:
+			Upload Paths:
+			Redirect: None
+		Location Config:
+			Alias Path: /data
+			Root Path: www/static
+			Auto Index: Enabled
+			Index Files:
+				- www/static/data.txt
+			Allowed Methods:
+				- GET
+				- POST
+			CGI Mappings:
+			Upload Paths:
+			Redirect: None
+		Location Config:
+			Alias Path: /upload
+			Root Path: www/static
+			Auto Index: Disabled
+			Index Files:
+			Allowed Methods:
+			CGI Mappings:
+			Upload Paths:
+			Redirect: 302 -> http://192.168.1.10:80/uploads
+		Location Config:
+			Alias Path: /cgi
+			Root Path: www/static
+			Auto Index: Disabled
+			Index Files:
+			Allowed Methods:
+			CGI Mappings:
+			Upload Paths:
+			Redirect: 302 -> http://10.0.0.5:8080/scripts

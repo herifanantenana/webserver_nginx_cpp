@@ -33,5 +33,6 @@ namespace config
 		inline void setRedirect(int code, const std::string &url) { _redirect = std::make_pair(code, url); }
 
 		void setup(const std::string &serverRootPath);
+		void printConfig(std::ofstream &outFile) const;
 	};
 } // namespace config

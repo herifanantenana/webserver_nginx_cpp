@@ -31,5 +31,6 @@ namespace config
 
 		inline const std::vector<HostPort> &getHostPort() const { return _hostPorts; }
 		void setup();
+		void printConfig(std::ofstream &outFile) const;
 	};
 } // namespace config

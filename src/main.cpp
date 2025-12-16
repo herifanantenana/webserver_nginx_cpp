@@ -12,7 +12,9 @@ int main(int argc, char const *argv[])
 		config::ParserConfig parserConfig(argv[1]);
 		parserConfig.parseConfigFile();
 		parserConfig.setup();
-		std::vector<config::ServerConfig> serverConfigs = parserConfig.getServer();
+		parserConfig.printConfig(std::string(argv[1]) + ".out");
+		std::vector<config::ServerConfig>
+				serverConfigs = parserConfig.getServer();
 
 		core::Network *network = core::Network::getInstance();
 		network->init(serverConfigs);
