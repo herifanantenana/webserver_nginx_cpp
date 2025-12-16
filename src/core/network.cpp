@@ -54,7 +54,7 @@ namespace core
 		}
 	}
 
-	void Network::registerConnection(connection::Connection *connection)
+	void Network::registerConnection(connection::Connection *connection, short events)
 	{
 		const int fd = connection->getFd();
 		if (fd < 0)
@@ -64,7 +64,7 @@ namespace core
 
 		pollfd pfd;
 		pfd.fd = fd;
-		pfd.events = connection->getPollEvents();
+		pfd.events = events;
 		pfd.revents = 0;
 		_pollFds.push_back(pfd);
 	}
@@ -91,6 +91,14 @@ namespace core
 			LOG_WARNING("Attempted to unregister non-existent connection with fd %d.", fd);
 	}
 
+	connection::Connection *core::Network::getConnectionFd(const int fd)
+	{
+		std::map<const int, connection::Connection *>::iterator connIt = _connections.find(fd);
+		if (connIt != _connections.end())
+			return connIt->second;
+		return NULL;
+	}
+
 	void Network::setupServer()
 	{
 		for (std::vector<config::ServerConfig>::const_iterator it = _serverConfigs.begin(); it != _serverConfigs.end(); ++it)
@@ -105,7 +113,7 @@ namespace core
 				try
 				{
 					serverSocket = new connection::ServerSocket(hpIt->second, hpIt->first, *it);
-					registerConnection(serverSocket);
+					registerConnection(serverSocket, POLLIN);
 				}
 				catch (const std::exception &e)
 				{
@@ -125,8 +133,8 @@ namespace core
 		for (std::vector<pollfd>::iterator it = _pollFds.begin(); it != _pollFds.end(); ++it)
 		{
 			const int fd = it->fd;
-			std::map<const int, connection::Connection *>::iterator connIt = _connections.find(fd);
-			if (connIt == _connections.end())
+			connection::Connection *conn = getConnectionFd(fd);
+			if (!conn)
 			{
 				LOG_WARNING("Pollfd with fd %d has no associated connection. Skipping.", fd);
 				_pollFds.erase(it);
@@ -134,21 +142,21 @@ namespace core
 			}
 
 			short events = POLLIN | POLLHUP | POLLERR;
-			if (connIt->second->getType() == connection::Connection::CLIENT_SOCKET)
+
+			if (conn->getType() == connection::Connection::CLIENT_SOCKET)
 			{
-				connection::ClientSocket *clientSocket = dynamic_cast<connection::ClientSocket *>(connIt->second);
+				connection::ClientSocket *clientSocket = dynamic_cast<connection::ClientSocket *>(conn);
 				if (clientSocket)
 				{
 					connection::ClientSocket::ClientState clientState = clientSocket->getState();
 					if (clientState == connection::ClientSocket::PROCESSING_REQUEST || clientState == connection::ClientSocket::EXECUTING_CGI || clientState == connection::ClientSocket::WRITING_RESPONSE)
 						events |= POLLOUT;
-					connIt->second->setPollEvents(events);
 				}
 				else
 					LOG_WARNING("Pollfd with fd %d is not associated with a ClientSocket. Skipping.", fd);
 			}
 
-			it->events = connIt->second->getPollEvents();
+			it->events = events;
 		}
 	}
 

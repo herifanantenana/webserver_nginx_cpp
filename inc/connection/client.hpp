@@ -21,6 +21,19 @@ namespace connection
 	private:
 		const config::ServerConfig &_serverConfig;
 		ClientState _state;
+		// ? request
+		// ? response
+
+		// buffer
+		std::vector<char> _readBuffer;
+		std::string _writeBuffer;
+		size_t _writeOffset;
+
+		// keep alive
+		bool _isKeepAlive;
+		int _requestCount;
+
+		// ? cgi handler
 
 	public:
 		ClientSocket(const int fd, const config::ServerConfig &serverConfig);

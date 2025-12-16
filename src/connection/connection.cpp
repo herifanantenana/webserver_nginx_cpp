@@ -5,7 +5,7 @@
 
 namespace connection
 {
-	Connection::Connection(const int fd, const ConnectionType type) : _fd(fd), _type(type), _pollEvents(0), _lastActivity(std::time(NULL))
+	Connection::Connection(const int fd, const ConnectionType type) : _fd(fd), _type(type), _lastActivity(std::time(NULL))
 	{
 	}
 

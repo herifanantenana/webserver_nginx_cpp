@@ -26,8 +26,6 @@ namespace connection
 				EXCEPTION("Invalid host address: %s", _host.c_str());
 		}
 
-		setPollEvents(POLLIN | POLLHUP | POLLERR);
-
 		const int socketFd = socket(AF_INET, SOCK_STREAM, 0);
 		if (socketFd < 0)
 			EXCEPTION("Failed to create socket: %s", std::strerror(errno));

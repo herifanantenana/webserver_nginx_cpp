@@ -16,7 +16,6 @@ namespace connection
 	private:
 		int _fd;
 		const ConnectionType _type;
-		short _pollEvents;
 		time_t _lastActivity;
 
 	public:
@@ -24,12 +23,10 @@ namespace connection
 		virtual ~Connection();
 
 		inline void setFd(const int fd) { _fd = fd; }
-		inline void setPollEvents(const short pollEvents) { _pollEvents = pollEvents; }
 		inline void updateActivity() { _lastActivity = std::time(NULL); }
 
 		inline const int &getFd() const { return _fd; }
 		inline const ConnectionType &getType() const { return _type; }
-		inline const short &getPollEvents() const { return _pollEvents; }
 
 		virtual bool shouldClose() const = 0;
 	};

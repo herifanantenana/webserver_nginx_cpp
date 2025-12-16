@@ -32,7 +32,8 @@ namespace core
 		void init(std::vector<config::ServerConfig> serverConfigs);
 		void run();
 
-		void registerConnection(connection::Connection *connection);
+		void registerConnection(connection::Connection *connection, short events);
 		void unregisterConnection(connection::Connection *connection);
+		connection::Connection *getConnectionFd(const int fd);
 	};
 } // namespace network
