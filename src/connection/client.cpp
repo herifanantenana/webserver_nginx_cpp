@@ -1,5 +1,8 @@
 #include "connection/client.hpp"
 
+#include "utils/logger.hpp"
+#include <poll.h>
+
 namespace connection
 {
 	ClientSocket::ClientSocket(const int fd, const config::ServerConfig &serverConfig)
@@ -24,5 +27,15 @@ namespace connection
 	bool ClientSocket::shouldClose() const
 	{
 		return _state == ClientSocket::CLOSING || _state == ClientSocket::CLIENT_ERROR;
+	}
+
+	void ClientSocket::handleEvents(short events)
+	{
+		if (events & (POLLHUP | POLLERR | POLLNVAL))
+			LOG_ERROR("Error on events & (POLLHUP | POLLERR | POLLNVAL) on Server fd=%d", getFd());
+		if (events & POLLIN)
+			LOG_INFO("event POLLIN on Server fd=%d", getFd());
+		if (events & POLLOUT)
+			LOG_INFO("event POLLOUT on Server fd=%d", getFd());
 	}
 } // namespace connection

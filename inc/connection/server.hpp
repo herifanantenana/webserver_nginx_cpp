@@ -18,6 +18,8 @@ namespace connection
 		ServerSocket(const int port, const std::string &host, const config::ServerConfig &serverConfig);
 		virtual ~ServerSocket();
 
+		virtual void handleEvents(short events);
+
 		inline virtual bool shouldClose() const { return false; }
 	};
 } // namespace connection

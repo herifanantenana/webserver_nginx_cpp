@@ -31,5 +31,6 @@ namespace connection
 		bool isTimedOut(const int sec = 10) const;
 
 		virtual bool shouldClose() const = 0;
+		virtual void handleEvents(short events) = 0;
 	};
 } // namespace connection

@@ -172,6 +172,7 @@ namespace core
 
 			--eventCount;
 			int fd = _pollFds[i].fd;
+			short events = _pollFds[i].revents;
 
 			connection::Connection *connection = getConnectionFd(fd);
 			if (!connection)
@@ -179,7 +180,7 @@ namespace core
 
 			try
 			{
-				// todo: handler socket event for server and client socket
+				connection->handleEvents(events);
 				if (connection->shouldClose())
 					toRemove.push_back(connection);
 			}
@@ -209,7 +210,7 @@ namespace core
 			if (conn->isTimedOut(10))
 			{
 				// todo: handle timeout response
-				LOG_WARNING("Connection timedOut fd=%d", connIt->first);
+				LOG_WARNING("Connection timeOut fd=%d", connIt->first);
 				toRemove.push_back(conn);
 			}
 		}
@@ -241,13 +242,18 @@ namespace core
 			synchronizePollFds();
 
 			int eventCount = poll(&_pollFds[0], _pollFds.size(), 0);
+
 			if (eventCount < 0)
 			{
 				if (errno == EINTR)
 					continue;
 				EXCEPTION("Poll error: %s", std::strerror(errno));
 			}
-			handlePollEvents(eventCount);
+
+			if (eventCount > 0)
+				handlePollEvents(eventCount);
+
+			cleanUpTimeOutConnection();
 		}
 	}
 } // namespace core

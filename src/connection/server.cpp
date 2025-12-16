@@ -48,4 +48,14 @@ namespace connection
 	ServerSocket::~ServerSocket()
 	{
 	}
+
+	void ServerSocket::handleEvents(short events)
+	{
+		if (events & (POLLHUP | POLLERR | POLLNVAL))
+			LOG_ERROR("Error on events & (POLLHUP | POLLERR | POLLNVAL) on Server fd=%d", getFd());
+		if (events & POLLIN)
+			LOG_INFO("event POLLIN on Server fd=%d", getFd());
+		if (events & POLLOUT)
+			LOG_INFO("event POLLOUT on Server fd=%d", getFd());
+	}
 } // namespace connection
